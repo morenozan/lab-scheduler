@@ -30,7 +30,7 @@ function savePeople(people) {
 function addPerson(name) {
   if (!name.trim()) return;
   const people = getPeople();
-  people.push({ id: Math.random().toString(36).substr(2, 9), name: name.trim() });
+  people.push({ id: Math.random().toString(36).substr(2, 9), name: name.trim(), duration: 20 });
   savePeople(people);
 }
 
@@ -44,18 +44,20 @@ function reorderPeople(newOrder) {
   savePeople(newOrder);
 }
 
-// Slot duration
-function getSlotDuration() {
-  const val = localStorage.getItem(STORAGE_DURATION);
-  return val ? parseInt(val, 10) : 20;
+// Per-person slot duration
+function setPersonDuration(id, minutes) {
+  const people = getPeople();
+  const person = people.find(p => p.id === id);
+  if (person) {
+    person.duration = Math.max(5, Math.min(120, minutes));
+    savePeople(people);
+  }
 }
 
-function setSlotDuration(minutes) {
-  localStorage.setItem(STORAGE_DURATION, String(Math.max(5, Math.min(120, minutes))));
-}
-
-function resetSlotDuration() {
-  setSlotDuration(20);
+function resetAllDurations() {
+  const people = getPeople();
+  people.forEach(p => { p.duration = 20; });
+  savePeople(people);
 }
 
 // Presenter reminder
@@ -68,7 +70,7 @@ function setPresenter(name) {
 }
 
 // Scheduling algorithm
-function generateSchedule(startTime, endTime, activePeople, slotDuration) {
+function generateSchedule(startTime, endTime, activePeople) {
   if (!startTime || !endTime || activePeople.length === 0) {
     return { error: 'Please set times and select at least one person.' };
   }
@@ -84,7 +86,7 @@ function generateSchedule(startTime, endTime, activePeople, slotDuration) {
     return { error: 'End time must be after start time.' };
   }
 
-  const requiredMin = activePeople.length * slotDuration;
+  const requiredMin = activePeople.reduce((sum, p) => sum + (p.duration || 20), 0);
   if (requiredMin > totalAvailableMin) {
     return { error: `Not enough time. Need ${requiredMin} min, have ${totalAvailableMin} min.` };
   }
@@ -93,8 +95,9 @@ function generateSchedule(startTime, endTime, activePeople, slotDuration) {
   let currentMin = startTotalMin;
 
   activePeople.forEach(person => {
+    const duration = person.duration || 20;
     const start = minToTime(currentMin);
-    currentMin += slotDuration;
+    currentMin += duration;
     const end = minToTime(currentMin);
     slots.push({ personId: person.id, name: person.name, start, end });
   });

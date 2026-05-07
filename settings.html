@@ -5,6 +5,112 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Settings - Lab Scheduler</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    .time-window {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .time-window label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .time-window input[type="time"] {
+      width: auto;
+      max-width: 150px;
+    }
+
+    .presenter-section {
+      margin-bottom: 25px;
+    }
+
+    .person-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid #eee;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      background: #fafafa;
+      cursor: grab;
+    }
+
+    .person-row:active {
+      cursor: grabbing;
+      background: #f0f0f0;
+    }
+
+    .drag-handle {
+      color: #999;
+      font-weight: bold;
+      user-select: none;
+      min-width: 20px;
+      text-align: center;
+    }
+
+    .person-checkbox {
+      flex-shrink: 0;
+    }
+
+    .person-name {
+      flex: 1;
+      min-width: 120px;
+      font-weight: 500;
+    }
+
+    .person-duration {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .person-duration input {
+      width: 50px !important;
+      max-width: 50px;
+      padding: 6px !important;
+    }
+
+    .person-delete {
+      flex-shrink: 0;
+    }
+
+    .person-list {
+      list-style: none;
+      padding: 0;
+      margin: 15px 0;
+    }
+
+    .add-person {
+      display: flex;
+      gap: 10px;
+      margin: 15px 0;
+      flex-wrap: wrap;
+    }
+
+    .add-person input {
+      flex: 1;
+      min-width: 150px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
+    .section-divider {
+      margin: 30px 0 20px 0;
+      padding-top: 20px;
+      border-top: 2px solid #f0f0f0;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
@@ -15,45 +121,41 @@
 
     <!-- Time window -->
     <h2>Time Window</h2>
-    <div class="row inputs">
+    <div class="time-window">
       <label>Start: <input type="time" id="startTime" value="10:00"></label>
       <label>End: <input type="time" id="endTime" value="11:00"></label>
     </div>
 
-    <!-- Slot duration -->
-    <h2>Slot Duration</h2>
-    <div class="duration-row">
-      <label>Minutes per person:</label>
-      <input type="number" id="duration" min="5" max="120" value="20">
-      <button class="secondary" onclick="resetDuration()">Reset to 20</button>
-    </div>
-
     <!-- Presenter reminder -->
-    <h2>This Week's Presenter</h2>
-    <p style="font-size: 13px; color: #666; margin-top: 0;">Enter the presenter's name to get a reminder if they're checked in.</p>
-    <input type="text" id="presenter" placeholder="e.g. John Doe" style="max-width: 250px;">
-    <div id="presenterWarning"></div>
-
-    <!-- Checklist -->
-    <h2>Include in Schedule</h2>
-    <div class="checklist" id="checklist"></div>
-
-    <!-- Generate -->
-    <div id="generateError"></div>
-    <button onclick="doGenerate()" style="margin-top: 10px;">Generate Schedule</button>
-
-    <!-- People management -->
-    <h2 style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f0f0f0;">Lab Members</h2>
-    <p style="font-size: 13px; color: #666;">Drag to reorder. This sets the default order in schedules.</p>
-
-    <div class="add-person">
-      <input type="text" id="newPersonInput" placeholder="Enter name...">
-      <button onclick="addNewPerson()">Add</button>
+    <div class="presenter-section">
+      <h2>This Week's Presenter</h2>
+      <p style="font-size: 13px; color: #666; margin: 0 0 10px 0;">Optional reminder if presenter is checked in.</p>
+      <input type="text" id="presenter" placeholder="e.g. John Doe" style="max-width: 250px;">
+      <div id="presenterWarning"></div>
     </div>
 
-    <ul class="people-list" id="peopleList"></ul>
+    <!-- Generate button -->
+    <div id="generateError"></div>
+    <button onclick="doGenerate()">Generate Schedule</button>
 
-    <p style="font-size: 12px; color: #999;">All changes save automatically.</p>
+    <!-- Lab members -->
+    <div class="section-divider">
+      <h2 style="margin-top: 0;">Lab Members</h2>
+      <p style="font-size: 13px; color: #666; margin-top: 0;">Drag to reorder. Each person can have a custom slot duration.</p>
+
+      <div class="add-person">
+        <input type="text" id="newPersonInput" placeholder="Enter name...">
+        <button onclick="addNewPerson()">Add</button>
+      </div>
+
+      <div id="peopleContainer"></div>
+
+      <div class="button-group">
+        <button class="secondary" onclick="resetAllDurations()">Reset all to 20 min</button>
+      </div>
+
+      <p style="font-size: 12px; color: #999;">All changes save automatically.</p>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
@@ -61,81 +163,81 @@
   <script>
     let sortableInstance = null;
 
-    function renderChecklist() {
+    function renderPeopleRows() {
       const people = getPeople();
-      const checklist = document.getElementById('checklist');
-      checklist.innerHTML = '';
+      const container = document.getElementById('peopleContainer');
 
       if (people.length === 0) {
-        checklist.innerHTML = '<p style="color: #999;">No people yet. Add members below.</p>';
+        container.innerHTML = '<p style="color: #999;">No members yet. Add one above.</p>';
+        if (sortableInstance) {
+          sortableInstance.destroy();
+          sortableInstance = null;
+        }
         return;
       }
 
-      people.forEach(person => {
-        const item = document.createElement('div');
-        item.className = 'checklist-item';
-
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.id = `check-${person.id}`;
-        checkbox.checked = true;
-        checkbox.addEventListener('change', updatePresenterWarning);
-
-        const label = document.createElement('label');
-        label.htmlFor = `check-${person.id}`;
-        label.style.flex = '1';
-        label.textContent = person.name;
-
-        item.appendChild(checkbox);
-        item.appendChild(label);
-        checklist.appendChild(item);
-      });
-
-      updatePresenterWarning();
-    }
-
-    function renderPeopleList() {
-      const people = getPeople();
-      const list = document.getElementById('peopleList');
-      list.innerHTML = '';
-
-      if (sortableInstance) {
-        sortableInstance.destroy();
-        sortableInstance = null;
-      }
+      const list = document.createElement('ul');
+      list.className = 'person-list';
+      list.id = 'sortable-list';
 
       people.forEach(person => {
         const li = document.createElement('li');
-        li.className = 'people-item';
+        li.className = 'person-row';
         li.dataset.id = person.id;
+
+        const duration = person.duration || 20;
 
         li.innerHTML = `
           <span class="drag-handle">≡</span>
-          <span class="people-name">${escapeHtml(person.name)}</span>
-          <button class="danger" onclick="deletePersonHandler('${person.id}')">✕</button>
+          <input type="checkbox" class="person-checkbox person-check" data-id="${person.id}" checked>
+          <span class="person-name">${escapeHtml(person.name)}</span>
+          <div class="person-duration">
+            <input type="number" class="person-duration-input" data-id="${person.id}" value="${duration}" min="5" max="120">
+            <span>min</span>
+          </div>
+          <button class="danger person-delete" onclick="deletePersonHandler('${person.id}')">✕</button>
         `;
 
         list.appendChild(li);
       });
 
-      if (people.length > 0) {
-        sortableInstance = Sortable.create(list, {
-          handle: '.drag-handle',
-          animation: 150,
-          onEnd: () => {
-            const newOrder = Array.from(list.querySelectorAll('[data-id]')).map(li => {
-              const id = li.dataset.id;
-              return people.find(p => p.id === id);
-            });
-            reorderPeople(newOrder);
-            renderChecklist();
-          }
-        });
+      container.innerHTML = '';
+      container.appendChild(list);
+
+      if (sortableInstance) {
+        sortableInstance.destroy();
       }
+
+      sortableInstance = Sortable.create(list, {
+        handle: '.drag-handle',
+        animation: 150,
+        onEnd: () => {
+          const newOrder = Array.from(list.querySelectorAll('[data-id]')).map(li => {
+            const id = li.dataset.id;
+            return people.find(p => p.id === id);
+          });
+          reorderPeople(newOrder);
+        }
+      });
+
+      // Attach event listeners
+      document.querySelectorAll('.person-check').forEach(cb => {
+        cb.addEventListener('change', updatePresenterWarning);
+      });
+
+      document.querySelectorAll('.person-duration-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+          const id = e.target.dataset.id;
+          const minutes = parseInt(e.target.value, 10) || 20;
+          setPersonDuration(id, minutes);
+        });
+      });
+
+      updatePresenterWarning();
     }
 
     function updatePresenterWarning() {
-      const presenter = getPresenter().trim();
+      const presenter = document.getElementById('presenter').value.trim();
       const warningDiv = document.getElementById('presenterWarning');
 
       if (!presenter) {
@@ -151,9 +253,9 @@
         return;
       }
 
-      const checkbox = document.getElementById(`check-${match.id}`);
+      const checkbox = document.querySelector(`.person-check[data-id="${match.id}"]`);
       if (checkbox && checkbox.checked) {
-        warningDiv.innerHTML = `<div class="warning-banner" style="margin-top: 10px;">⚠ <strong>${escapeHtml(presenter)}</strong> is checked in — remember to exclude this week's presenter!</div>`;
+        warningDiv.innerHTML = `<div class="warning-banner" style="margin-top: 10px;">⚠ <strong>${escapeHtml(presenter)}</strong> is checked in — remember to exclude them!</div>`;
       } else {
         warningDiv.innerHTML = '';
       }
@@ -162,7 +264,7 @@
     function getActivePeople() {
       const people = getPeople();
       return people.filter(p => {
-        const cb = document.getElementById(`check-${p.id}`);
+        const cb = document.querySelector(`.person-check[data-id="${p.id}"]`);
         return cb && cb.checked;
       });
     }
@@ -171,9 +273,8 @@
       const startTime = document.getElementById('startTime').value;
       const endTime = document.getElementById('endTime').value;
       const activePeople = getActivePeople();
-      const slotDuration = getSlotDuration();
 
-      const result = generateSchedule(startTime, endTime, activePeople, slotDuration);
+      const result = generateSchedule(startTime, endTime, activePeople);
       const errorDiv = document.getElementById('generateError');
 
       if (result.error) {
@@ -192,21 +293,21 @@
       if (!name) return;
       addPerson(name);
       input.value = '';
-      renderPeopleList();
-      renderChecklist();
+      renderPeopleRows();
     }
 
     function deletePersonHandler(id) {
       if (confirm('Delete this person?')) {
         removePerson(id);
-        renderPeopleList();
-        renderChecklist();
+        renderPeopleRows();
       }
     }
 
-    function resetDuration() {
-      resetSlotDuration();
-      document.getElementById('duration').value = getSlotDuration();
+    function resetAllDurations() {
+      if (confirm('Reset all durations to 20 minutes?')) {
+        resetAllDurations();
+        renderPeopleRows();
+      }
     }
 
     function escapeHtml(text) {
@@ -214,10 +315,6 @@
       div.textContent = text;
       return div.innerHTML;
     }
-
-    document.getElementById('duration').addEventListener('change', (e) => {
-      setSlotDuration(parseInt(e.target.value, 10));
-    });
 
     document.getElementById('presenter').addEventListener('input', (e) => {
       setPresenter(e.target.value);
@@ -229,10 +326,8 @@
     });
 
     document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('duration').value = getSlotDuration();
       document.getElementById('presenter').value = getPresenter();
-      renderChecklist();
-      renderPeopleList();
+      renderPeopleRows();
     });
   </script>
 </body>
