@@ -8,12 +8,19 @@
 </head>
 <body>
   <div class="container">
-    <div class="back-link">
-      <a href="index.html">← Back</a>
+    <header>
+      <h1>Lab Scheduler</h1>
+      <a href="index.html">View Schedule</a>
+    </header>
+
+    <!-- Time window -->
+    <h2>Time Window</h2>
+    <div class="row inputs">
+      <label>Start: <input type="time" id="startTime" value="10:00"></label>
+      <label>End: <input type="time" id="endTime" value="11:00"></label>
     </div>
 
-    <h1>Settings</h1>
-
+    <!-- Slot duration -->
     <h2>Slot Duration</h2>
     <div class="duration-row">
       <label>Minutes per person:</label>
@@ -21,8 +28,23 @@
       <button class="secondary" onclick="resetDuration()">Reset to 20</button>
     </div>
 
-    <h2>Lab Members</h2>
-    <p style="font-size: 13px; color: #666;">Drag to reorder. Members are listed in the order they'll appear in schedules.</p>
+    <!-- Presenter reminder -->
+    <h2>This Week's Presenter</h2>
+    <p style="font-size: 13px; color: #666; margin-top: 0;">Enter the presenter's name to get a reminder if they're checked in.</p>
+    <input type="text" id="presenter" placeholder="e.g. John Doe" style="max-width: 250px;">
+    <div id="presenterWarning"></div>
+
+    <!-- Checklist -->
+    <h2>Include in Schedule</h2>
+    <div class="checklist" id="checklist"></div>
+
+    <!-- Generate -->
+    <div id="generateError"></div>
+    <button onclick="doGenerate()" style="margin-top: 10px;">Generate Schedule</button>
+
+    <!-- People management -->
+    <h2 style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f0f0f0;">Lab Members</h2>
+    <p style="font-size: 13px; color: #666;">Drag to reorder. This sets the default order in schedules.</p>
 
     <div class="add-person">
       <input type="text" id="newPersonInput" placeholder="Enter name...">
@@ -31,21 +53,60 @@
 
     <ul class="people-list" id="peopleList"></ul>
 
-    <p style="font-size: 12px; color: #999;">Changes save automatically.</p>
+    <p style="font-size: 12px; color: #999;">All changes save automatically.</p>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <script src="app.js"></script>
   <script>
+    let sortableInstance = null;
+
+    function renderChecklist() {
+      const people = getPeople();
+      const checklist = document.getElementById('checklist');
+      checklist.innerHTML = '';
+
+      if (people.length === 0) {
+        checklist.innerHTML = '<p style="color: #999;">No people yet. Add members below.</p>';
+        return;
+      }
+
+      people.forEach(person => {
+        const item = document.createElement('div');
+        item.className = 'checklist-item';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `check-${person.id}`;
+        checkbox.checked = true;
+        checkbox.addEventListener('change', updatePresenterWarning);
+
+        const label = document.createElement('label');
+        label.htmlFor = `check-${person.id}`;
+        label.style.flex = '1';
+        label.textContent = person.name;
+
+        item.appendChild(checkbox);
+        item.appendChild(label);
+        checklist.appendChild(item);
+      });
+
+      updatePresenterWarning();
+    }
+
     function renderPeopleList() {
       const people = getPeople();
       const list = document.getElementById('peopleList');
       list.innerHTML = '';
 
+      if (sortableInstance) {
+        sortableInstance.destroy();
+        sortableInstance = null;
+      }
+
       people.forEach(person => {
         const li = document.createElement('li');
         li.className = 'people-item';
-        li.draggable = true;
         li.dataset.id = person.id;
 
         li.innerHTML = `
@@ -58,18 +119,71 @@
       });
 
       if (people.length > 0) {
-        Sortable.create(list, {
+        sortableInstance = Sortable.create(list, {
           handle: '.drag-handle',
           animation: 150,
-          onEnd: (evt) => {
+          onEnd: () => {
             const newOrder = Array.from(list.querySelectorAll('[data-id]')).map(li => {
               const id = li.dataset.id;
               return people.find(p => p.id === id);
             });
             reorderPeople(newOrder);
+            renderChecklist();
           }
         });
       }
+    }
+
+    function updatePresenterWarning() {
+      const presenter = getPresenter().trim();
+      const warningDiv = document.getElementById('presenterWarning');
+
+      if (!presenter) {
+        warningDiv.innerHTML = '';
+        return;
+      }
+
+      const people = getPeople();
+      const match = people.find(p => p.name.toLowerCase() === presenter.toLowerCase());
+
+      if (!match) {
+        warningDiv.innerHTML = '';
+        return;
+      }
+
+      const checkbox = document.getElementById(`check-${match.id}`);
+      if (checkbox && checkbox.checked) {
+        warningDiv.innerHTML = `<div class="warning-banner" style="margin-top: 10px;">⚠ <strong>${escapeHtml(presenter)}</strong> is checked in — remember to exclude this week's presenter!</div>`;
+      } else {
+        warningDiv.innerHTML = '';
+      }
+    }
+
+    function getActivePeople() {
+      const people = getPeople();
+      return people.filter(p => {
+        const cb = document.getElementById(`check-${p.id}`);
+        return cb && cb.checked;
+      });
+    }
+
+    function doGenerate() {
+      const startTime = document.getElementById('startTime').value;
+      const endTime = document.getElementById('endTime').value;
+      const activePeople = getActivePeople();
+      const slotDuration = getSlotDuration();
+
+      const result = generateSchedule(startTime, endTime, activePeople, slotDuration);
+      const errorDiv = document.getElementById('generateError');
+
+      if (result.error) {
+        errorDiv.innerHTML = `<div class="error">${result.error}</div>`;
+        return;
+      }
+
+      errorDiv.innerHTML = '';
+      localStorage.setItem(STORAGE_LAST_SCHEDULE, JSON.stringify(result));
+      window.location.href = 'index.html';
     }
 
     function addNewPerson() {
@@ -79,12 +193,14 @@
       addPerson(name);
       input.value = '';
       renderPeopleList();
+      renderChecklist();
     }
 
     function deletePersonHandler(id) {
       if (confirm('Delete this person?')) {
         removePerson(id);
         renderPeopleList();
+        renderChecklist();
       }
     }
 
@@ -103,15 +219,19 @@
       setSlotDuration(parseInt(e.target.value, 10));
     });
 
-    document.getElementById('newPersonInput').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        addNewPerson();
-      }
+    document.getElementById('presenter').addEventListener('input', (e) => {
+      setPresenter(e.target.value);
+      updatePresenterWarning();
     });
 
-    // Initialize
+    document.getElementById('newPersonInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') addNewPerson();
+    });
+
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('duration').value = getSlotDuration();
+      document.getElementById('presenter').value = getPresenter();
+      renderChecklist();
       renderPeopleList();
     });
   </script>

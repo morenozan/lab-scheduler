@@ -3,40 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lab Scheduler</title>
+  <title>Lab Schedule</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>Lab Scheduler</h1>
+      <h1>Lab Schedule</h1>
       <a href="settings.html">⚙ Settings</a>
     </header>
 
-    <div class="row inputs">
-      <label>Start: <input type="time" id="startTime" value="10:00"></label>
-      <label>End: <input type="time" id="endTime" value="11:00"></label>
-    </div>
-
-    <div id="durationDisplay" style="font-size: 14px; color: #666; margin-bottom: 15px;">
-      Slot duration: <span id="durationValue">20</span> min/person
-    </div>
-
-    <h2>Participants</h2>
-    <div id="presenterWarning"></div>
-
-    <div class="checklist" id="checklist"></div>
-
-    <div>
-      <label style="font-size: 13px; color: #666;">
-        This week's presenter (reminder):
-      </label>
-      <input type="text" id="presenter" placeholder="e.g. John Doe" style="margin-bottom: 15px;">
-    </div>
-
-    <button onclick="generateSchedule()">Generate Schedule</button>
-
-    <div id="output"></div>
+    <div id="content"></div>
 
     <div class="share-buttons" id="shareButtons" style="display: none;">
       <button class="secondary" onclick="copyAsText()">📋 Copy as Text</button>
@@ -48,141 +25,73 @@
   <script>
     let currentSchedule = null;
 
-    function renderChecklist() {
-      const people = getPeople();
-      const checklist = document.getElementById('checklist');
-      checklist.innerHTML = '';
-
-      if (people.length === 0) {
-        checklist.innerHTML = '<p style="color: #999; text-align: center;">No people yet. <a href="settings.html">Add someone</a>.</p>';
-        return;
-      }
-
-      people.forEach(person => {
-        const item = document.createElement('div');
-        item.className = 'checklist-item';
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.id = `person-${person.id}`;
-        checkbox.checked = true;
-        checkbox.addEventListener('change', updatePresenterWarning);
-
-        const label = document.createElement('label');
-        label.htmlFor = `person-${person.id}`;
-        label.style.flex = '1';
-        label.textContent = person.name;
-
-        item.appendChild(checkbox);
-        item.appendChild(label);
-        checklist.appendChild(item);
-      });
-
-      updatePresenterWarning();
-    }
-
-    function updatePresenterWarning() {
-      const presenter = getPresenter();
-      const warningDiv = document.getElementById('presenterWarning');
-
-      if (!presenter.trim()) {
-        warningDiv.innerHTML = '';
-        return;
-      }
-
-      const people = getPeople();
-      const presenterPerson = people.find(p => p.name.toLowerCase() === presenter.toLowerCase());
-
-      if (!presenterPerson) {
-        warningDiv.innerHTML = '';
-        return;
-      }
-
-      const checkbox = document.getElementById(`person-${presenterPerson.id}`);
-      if (checkbox && checkbox.checked) {
-        warningDiv.innerHTML = `<div class="warning-banner">⚠ <strong>${presenter}</strong> is checked in — remember to exclude this week's presenter!</div>`;
-      } else {
-        warningDiv.innerHTML = '';
-      }
-    }
-
-    function getActivePeople() {
-      const people = getPeople();
-      const active = [];
-      people.forEach(person => {
-        const checkbox = document.getElementById(`person-${person.id}`);
-        if (checkbox && checkbox.checked) {
-          active.push(person);
-        }
-      });
-      return active;
-    }
-
-    function generateSchedule() {
-      const startTime = document.getElementById('startTime').value;
-      const endTime = document.getElementById('endTime').value;
-      const activePeople = getActivePeople();
-      const slotDuration = getSlotDuration();
-
-      const result = generateSchedule(startTime, endTime, activePeople, slotDuration);
-
-      const output = document.getElementById('output');
+    function displaySchedule() {
+      const content = document.getElementById('content');
       const shareButtons = document.getElementById('shareButtons');
 
-      if (result.error) {
-        output.innerHTML = `<div class="error">${result.error}</div>`;
+      // Prefer URL hash (shareable link), fall back to localStorage
+      const fromHash = decodeScheduleFromHash();
+      const schedule = fromHash || JSON.parse(localStorage.getItem(STORAGE_LAST_SCHEDULE) || 'null');
+
+      if (!schedule) {
+        content.innerHTML = `
+          <p style="color: #999; text-align: center; margin-top: 30px;">
+            No schedule yet. <a href="settings.html">Generate one</a>.
+          </p>`;
         shareButtons.style.display = 'none';
-        currentSchedule = null;
-      } else {
-        currentSchedule = result;
-        let html = `<div class="schedule-card"><h3>${result.date}</h3>`;
-        result.slots.forEach(slot => {
-          html += `<div class="schedule-slot"><span class="schedule-time">${slot.start}–${slot.end}</span><span class="schedule-name">${slot.name}</span></div>`;
-        });
-        html += '</div>';
-        output.innerHTML = html;
-        shareButtons.style.display = 'flex';
+        return;
       }
+
+      currentSchedule = schedule;
+
+      let html = `<div class="schedule-card"><h3>${escapeHtml(schedule.date)}</h3>`;
+      schedule.slots.forEach(slot => {
+        html += `<div class="schedule-slot">
+          <span class="schedule-time">${escapeHtml(slot.start)}–${escapeHtml(slot.end)}</span>
+          <span class="schedule-name">${escapeHtml(slot.name)}</span>
+        </div>`;
+      });
+      html += '</div>';
+      content.innerHTML = html;
+      shareButtons.style.display = 'flex';
     }
 
     function copyAsText() {
       if (!currentSchedule) return;
-      const text = formatScheduleAsText(currentSchedule);
-      copyToClipboard(text).then(success => {
-        alert(success ? 'Schedule copied to clipboard!' : 'Failed to copy. Try again.');
+      copyToClipboard(formatScheduleAsText(currentSchedule)).then(ok => {
+        if (ok) showFeedback('Copied!');
       });
     }
 
     function copyShareLink() {
       if (!currentSchedule) return;
       const encoded = encodeSchedule(currentSchedule);
-      const url = `${window.location.origin}${window.location.pathname}schedule.html#data=${encoded}`;
-      copyToClipboard(url).then(success => {
-        alert(success ? 'Share link copied to clipboard!' : 'Failed to copy. Try again.');
+      const base = window.location.href.split('#')[0];
+      const url = `${base}#data=${encoded}`;
+      copyToClipboard(url).then(ok => {
+        if (ok) showFeedback('Share link copied!');
       });
     }
 
-    document.getElementById('presenter').addEventListener('change', (e) => {
-      setPresenter(e.target.value);
-      updatePresenterWarning();
-    });
+    function showFeedback(msg) {
+      const old = document.getElementById('feedback');
+      if (old) old.remove();
+      const el = document.createElement('div');
+      el.id = 'feedback';
+      el.className = 'success';
+      el.textContent = msg;
+      document.querySelector('.share-buttons').after(el);
+      setTimeout(() => el.remove(), 2500);
+    }
 
-    document.getElementById('presenter').addEventListener('input', (e) => {
-      setPresenter(e.target.value);
-      updatePresenterWarning();
-    });
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
 
-    // Initialize
-    document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('presenter').value = getPresenter();
-      document.getElementById('durationValue').textContent = getSlotDuration();
-      renderChecklist();
-    });
-
-    // Refresh when returning from settings
-    window.addEventListener('pageshow', () => {
-      document.getElementById('durationValue').textContent = getSlotDuration();
-      renderChecklist();
-    });
+    document.addEventListener('DOMContentLoaded', displaySchedule);
+    window.addEventListener('hashchange', displaySchedule);
   </script>
 </body>
 </html>
