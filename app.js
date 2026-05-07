@@ -30,7 +30,7 @@ function savePeople(people) {
 function addPerson(name) {
   if (!name.trim()) return;
   const people = getPeople();
-  people.push({ id: Math.random().toString(36).substr(2, 9), name: name.trim(), duration: 20 });
+  people.push({ id: Math.random().toString(36).substr(2, 9), name: name.trim(), duration: 20, included: true });
   savePeople(people);
 }
 
@@ -60,6 +60,11 @@ function resetAllDurations() {
   savePeople(people);
 }
 
+// Active people selection
+function getActivePeople() {
+  return getPeople().filter(p => p.included !== false);
+}
+
 // Presenter reminder
 function getPresenter() {
   return localStorage.getItem(STORAGE_PRESENTER) || '';
@@ -70,7 +75,7 @@ function setPresenter(name) {
 }
 
 // Scheduling algorithm
-function generateSchedule(startTime, endTime, activePeople) {
+function generateSchedule(startTime, endTime, activePeople, dateStr) {
   if (!startTime || !endTime || activePeople.length === 0) {
     return { error: 'Please set times and select at least one person.' };
   }
@@ -103,11 +108,19 @@ function generateSchedule(startTime, endTime, activePeople) {
   });
 
   return {
-    date: new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+    date: formatDate(dateStr ? new Date(dateStr + 'T12:00:00') : new Date()),
     startTime,
     endTime,
     slots
   };
+}
+
+function formatDate(d) {
+  const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yy = String(d.getFullYear()).slice(2);
+  return `${weekday} ${dd}/${mm}/${yy}`;
 }
 
 function minToTime(totalMin) {
@@ -141,8 +154,7 @@ async function copyToClipboard(text) {
 }
 
 function formatScheduleAsText(schedule) {
-  let text = `Lab Schedule — ${schedule.date}\n`;
-  text += `${schedule.startTime}–${schedule.endTime}\n\n`;
+  let text = `1-1 Meetings — ${schedule.date}\n\n`;
   schedule.slots.forEach(slot => {
     text += `${slot.start}–${slot.end} — ${slot.name}\n`;
   });

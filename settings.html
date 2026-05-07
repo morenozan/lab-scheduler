@@ -22,7 +22,40 @@
 
     .time-window input[type="time"] {
       width: auto;
-      max-width: 150px;
+      max-width: 160px;
+    }
+
+    .date-picker-wrapper {
+      display: inline-flex;
+      align-items: center;
+      background: var(--surface0);
+      border: 1px solid var(--surface1);
+      border-radius: 4px;
+      vertical-align: middle;
+    }
+
+    .date-picker-wrapper:focus-within {
+      border-color: var(--mauve);
+      box-shadow: 0 0 0 2px rgba(203, 166, 247, 0.2);
+    }
+
+    .date-day-prefix {
+      padding: 10px 4px 10px 10px;
+      color: var(--mauve);
+      font-weight: 600;
+      font-size: 14px;
+      pointer-events: none;
+      user-select: none;
+      min-width: 36px;
+    }
+
+    .date-picker-wrapper input[type="text"] {
+      border: none !important;
+      background: transparent !important;
+      padding: 10px 10px 10px 4px !important;
+      width: 82px !important;
+      max-width: 82px !important;
+      box-shadow: none !important;
     }
 
     .presenter-section {
@@ -32,52 +65,70 @@
     .person-row {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 12px;
-      border: 1px solid #eee;
+      gap: 8px;
+      padding: 8px 10px;
+      border: 1px solid var(--surface1);
       border-radius: 4px;
-      margin-bottom: 8px;
-      background: #fafafa;
-      cursor: grab;
-    }
-
-    .person-row:active {
-      cursor: grabbing;
-      background: #f0f0f0;
+      margin-bottom: 6px;
+      background: var(--surface0);
     }
 
     .drag-handle {
-      color: #999;
+      color: var(--overlay0);
       font-weight: bold;
       user-select: none;
-      min-width: 20px;
-      text-align: center;
+      cursor: grab;
+      flex-shrink: 0;
+      padding: 0 2px;
     }
 
-    .person-checkbox {
-      flex-shrink: 0;
+    .drag-handle:active {
+      cursor: grabbing;
     }
 
     .person-name {
       flex: 1;
-      min-width: 120px;
+      min-width: 0;
       font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .person-duration {
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
+      flex-shrink: 0;
     }
 
     .person-duration input {
-      width: 50px !important;
-      max-width: 50px;
-      padding: 6px !important;
+      width: 48px !important;
+      max-width: 48px;
+      padding: 4px 6px !important;
+      font-size: 13px;
+    }
+
+    .duration-label {
+      font-size: 12px;
+      color: var(--overlay0);
     }
 
     .person-delete {
       flex-shrink: 0;
+      background: transparent;
+      color: var(--overlay0);
+      border: none;
+      padding: 2px 6px;
+      font-size: 14px;
+      line-height: 1;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .person-delete:hover {
+      color: var(--red);
+      background: rgba(243, 139, 168, 0.15);
     }
 
     .person-list {
@@ -108,7 +159,7 @@
     .section-divider {
       margin: 30px 0 20px 0;
       padding-top: 20px;
-      border-top: 2px solid #f0f0f0;
+      border-top: 2px solid var(--surface0);
     }
   </style>
 </head>
@@ -122,8 +173,9 @@
     <!-- Time window -->
     <h2>Time Window</h2>
     <div class="time-window">
-      <label>Start: <input type="time" id="startTime" value="10:00"></label>
-      <label>End: <input type="time" id="endTime" value="11:00"></label>
+      <label>Date: <span class="date-picker-wrapper"><span id="dateDayLabel" class="date-day-prefix"></span><input type="text" id="scheduleDate" placeholder="dd/mm/yy"></span></label>
+      <label>Start: <input type="time" id="startTime" value="09:00"></label>
+      <label>End: <input type="time" id="endTime" value="12:00"></label>
     </div>
 
     <!-- Presenter reminder -->
@@ -141,17 +193,26 @@
     <!-- Lab members -->
     <div class="section-divider">
       <h2 style="margin-top: 0;">Lab Members</h2>
-      <p style="font-size: 13px; color: #666; margin-top: 0;">Drag to reorder. Each person can have a custom slot duration.</p>
+      <p style="font-size: 13px; color: #666; margin-top: 0;">Drag to move between columns. Each person can have a custom slot duration.</p>
 
       <div class="add-person">
         <input type="text" id="newPersonInput" placeholder="Enter name...">
         <button onclick="addNewPerson()">Add</button>
       </div>
 
-      <div id="peopleContainer"></div>
+      <div class="two-col-people">
+        <div class="people-col">
+          <h3>Excluded</h3>
+          <ul id="excludedList" class="person-list"></ul>
+        </div>
+        <div class="people-col">
+          <h3>Included</h3>
+          <ul id="includedList" class="person-list"></ul>
+        </div>
+      </div>
 
       <div class="button-group">
-        <button class="secondary" onclick="resetAllDurations()">Reset all to 20 min</button>
+        <button class="secondary" onclick="resetAllDurationsHandler()">Reset all to 20 min</button>
       </div>
 
       <p style="font-size: 12px; color: #999;">All changes save automatically.</p>
@@ -161,69 +222,66 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <script src="app.js"></script>
   <script>
-    let sortableInstance = null;
+    let includedSortable = null;
+    let excludedSortable = null;
+
+    function buildPersonRow(person) {
+      const li = document.createElement('li');
+      li.className = 'person-row';
+      li.dataset.id = person.id;
+
+      const duration = person.duration || 20;
+
+      li.innerHTML = `
+        <span class="drag-handle">≡</span>
+        <span class="person-name">${escapeHtml(person.name)}</span>
+        <div class="person-duration">
+          <input type="number" class="person-duration-input" data-id="${person.id}" value="${duration}" min="5" max="120">
+          <span class="duration-label">min</span>
+        </div>
+        <button class="person-delete" onclick="deletePersonHandler('${person.id}')" title="Remove">✕</button>
+      `;
+
+      return li;
+    }
 
     function renderPeopleRows() {
+      if (includedSortable) { includedSortable.destroy(); includedSortable = null; }
+      if (excludedSortable) { excludedSortable.destroy(); excludedSortable = null; }
+
       const people = getPeople();
-      const container = document.getElementById('peopleContainer');
+      const includedList = document.getElementById('includedList');
+      const excludedList = document.getElementById('excludedList');
 
-      if (people.length === 0) {
-        container.innerHTML = '<p style="color: #999;">No members yet. Add one above.</p>';
-        if (sortableInstance) {
-          sortableInstance.destroy();
-          sortableInstance = null;
-        }
-        return;
-      }
+      includedList.innerHTML = '';
+      excludedList.innerHTML = '';
 
-      const list = document.createElement('ul');
-      list.className = 'person-list';
-      list.id = 'sortable-list';
-
+      const seen = new Set();
+      const deduped = [];
       people.forEach(person => {
-        const li = document.createElement('li');
-        li.className = 'person-row';
-        li.dataset.id = person.id;
-
-        const duration = person.duration || 20;
-
-        li.innerHTML = `
-          <span class="drag-handle">≡</span>
-          <input type="checkbox" class="person-checkbox person-check" data-id="${person.id}" checked>
-          <span class="person-name">${escapeHtml(person.name)}</span>
-          <div class="person-duration">
-            <input type="number" class="person-duration-input" data-id="${person.id}" value="${duration}" min="5" max="120">
-            <span>min</span>
-          </div>
-          <button class="danger person-delete" onclick="deletePersonHandler('${person.id}')">✕</button>
-        `;
-
-        list.appendChild(li);
+        if (seen.has(person.id)) return;
+        seen.add(person.id);
+        deduped.push(person);
+        const row = buildPersonRow(person);
+        if (person.included === false) {
+          excludedList.appendChild(row);
+        } else {
+          includedList.appendChild(row);
+        }
       });
-
-      container.innerHTML = '';
-      container.appendChild(list);
-
-      if (sortableInstance) {
-        sortableInstance.destroy();
+      if (deduped.length !== people.length) {
+        savePeople(deduped);
       }
 
-      sortableInstance = Sortable.create(list, {
+      const sortableOpts = {
+        group: 'people',
         handle: '.drag-handle',
         animation: 150,
-        onEnd: () => {
-          const newOrder = Array.from(list.querySelectorAll('[data-id]')).map(li => {
-            const id = li.dataset.id;
-            return people.find(p => p.id === id);
-          });
-          reorderPeople(newOrder);
-        }
-      });
+        onEnd: syncFromDOM
+      };
 
-      // Attach event listeners
-      document.querySelectorAll('.person-check').forEach(cb => {
-        cb.addEventListener('change', updatePresenterWarning);
-      });
+      includedSortable = Sortable.create(includedList, sortableOpts);
+      excludedSortable = Sortable.create(excludedList, sortableOpts);
 
       document.querySelectorAll('.person-duration-input').forEach(input => {
         input.addEventListener('change', (e) => {
@@ -233,6 +291,25 @@
         });
       });
 
+      updatePresenterWarning();
+    }
+
+    function syncFromDOM() {
+      const people = getPeople();
+      const byId = new Map(people.map(p => [p.id, p]));
+      const newOrder = [];
+
+      document.querySelectorAll('#excludedList > .person-row').forEach(li => {
+        const p = byId.get(li.dataset.id);
+        if (p) newOrder.push({ ...p, included: false });
+      });
+
+      document.querySelectorAll('#includedList > .person-row').forEach(li => {
+        const p = byId.get(li.dataset.id);
+        if (p) newOrder.push({ ...p, included: true });
+      });
+
+      savePeople(newOrder);
       updatePresenterWarning();
     }
 
@@ -248,33 +325,33 @@
       const people = getPeople();
       const match = people.find(p => p.name.toLowerCase() === presenter.toLowerCase());
 
-      if (!match) {
-        warningDiv.innerHTML = '';
-        return;
-      }
-
-      const checkbox = document.querySelector(`.person-check[data-id="${match.id}"]`);
-      if (checkbox && checkbox.checked) {
-        warningDiv.innerHTML = `<div class="warning-banner" style="margin-top: 10px;">⚠ <strong>${escapeHtml(presenter)}</strong> is checked in — remember to exclude them!</div>`;
+      if (match && match.included !== false) {
+        warningDiv.innerHTML = `<div class="warning-banner" style="margin-top: 10px;">⚠ <strong>${escapeHtml(presenter)}</strong> is in the Included column — remember to exclude them!</div>`;
       } else {
         warningDiv.innerHTML = '';
       }
     }
 
-    function getActivePeople() {
-      const people = getPeople();
-      return people.filter(p => {
-        const cb = document.querySelector(`.person-check[data-id="${p.id}"]`);
-        return cb && cb.checked;
-      });
+    function parseDdMmYy(str) {
+      const parts = str.trim().split('/');
+      if (parts.length !== 3) return null;
+      const [dd, mm, yy] = parts.map(Number);
+      if (!dd || !mm || !yy) return null;
+      const d = new Date(2000 + yy, mm - 1, dd, 12, 0, 0);
+      if (isNaN(d.getTime()) || d.getMonth() !== mm - 1) return null;
+      return d;
     }
 
     function doGenerate() {
       const startTime = document.getElementById('startTime').value;
       const endTime = document.getElementById('endTime').value;
+      const dateParsed = parseDdMmYy(document.getElementById('scheduleDate').value);
+      const dateStr = dateParsed
+        ? `${dateParsed.getFullYear()}-${String(dateParsed.getMonth() + 1).padStart(2, '0')}-${String(dateParsed.getDate()).padStart(2, '0')}`
+        : null;
       const activePeople = getActivePeople();
 
-      const result = generateSchedule(startTime, endTime, activePeople);
+      const result = generateSchedule(startTime, endTime, activePeople, dateStr);
       const errorDiv = document.getElementById('generateError');
 
       if (result.error) {
@@ -303,7 +380,7 @@
       }
     }
 
-    function resetAllDurations() {
+    function resetAllDurationsHandler() {
       if (confirm('Reset all durations to 20 minutes?')) {
         resetAllDurations();
         renderPeopleRows();
@@ -325,7 +402,28 @@
       if (e.key === 'Enter') addNewPerson();
     });
 
+    function nextWednesday() {
+      const d = new Date();
+      const daysUntil = (3 - d.getDay() + 7) % 7 || 7;
+      d.setDate(d.getDate() + daysUntil);
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yy = String(d.getFullYear()).slice(2);
+      return `${dd}/${mm}/${yy}`;
+    }
+
+    function updateDateDay() {
+      const d = parseDdMmYy(document.getElementById('scheduleDate').value);
+      document.getElementById('dateDayLabel').textContent = d
+        ? d.toLocaleDateString('en-US', { weekday: 'short' })
+        : '';
+    }
+
+    document.getElementById('scheduleDate').addEventListener('input', updateDateDay);
+
     document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('scheduleDate').value = nextWednesday();
+      updateDateDay();
       document.getElementById('presenter').value = getPresenter();
       renderPeopleRows();
     });
