@@ -1,8 +1,8 @@
 // Storage keys
-const STORAGE_PEOPLE = 'lsched_people';
-const STORAGE_DURATION = 'lsched_slot_duration';
-const STORAGE_LAST_SCHEDULE = 'lsched_last_schedule';
-const STORAGE_PRESENTER = 'lsched_presenter';
+const STORAGE_PEOPLE = '1to1_people';
+const STORAGE_DURATION = '1to1_slot_duration';
+const STORAGE_LAST_SCHEDULE = '1to1_last_schedule';
+const STORAGE_PRESENTER = '1to1_presenter';
 
 // Initialize storage with defaults
 function initStorage() {

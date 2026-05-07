@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Lab Scheduler is a client-side web application for generating and sharing 1-1 meeting schedules. It allows lab members to be added, assigned custom slot durations, included/excluded from a given session, and automatically scheduled within a time window.
+1to1 Scheduler is a client-side web application for generating and sharing 1-1 meeting schedules. It allows lab members to be added, assigned custom slot durations, included/excluded from a given session, and automatically scheduled within a time window.
 
 ## Running the Application
 
@@ -53,10 +53,10 @@ Defined in `:root` in `style.css`. Key tokens used:
 ## Storage
 
 LocalStorage keys (see `app.js`):
-- `lsched_people` — Array of `{id, name, duration, included}`
-- `lsched_slot_duration` — Legacy key (unused)
-- `lsched_last_schedule` — Last generated schedule JSON
-- `lsched_presenter` — Optional presenter name for warning
+- `1to1_people` — Array of `{id, name, duration, included}`
+- `1to1_slot_duration` — Legacy key (unused)
+- `1to1_last_schedule` — Last generated schedule JSON
+- `1to1_presenter` — Optional presenter name for warning
 
 Person object shape: `{ id: "abc123", name: "Alice", duration: 20, included: true }`. Missing `included` treated as `true`.
 
