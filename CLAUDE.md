@@ -22,7 +22,7 @@ Since this is a static HTML/CSS/JavaScript app with no build process:
 **Core logic in `app.js`:**
 - `getPeople()` / `savePeople()` — LocalStorage-backed people list
 - `getActivePeople()` — Pure data filter returning people with `included !== false`
-- `generateSchedule(startTime, endTime, activePeople, dateStr)` — Builds slot array; `dateStr` is YYYY-MM-DD
+- `generateSchedule(timeBlocks, activePeople, dateStr)` — Builds slot array across one or more time blocks; `timeBlocks` is `[{start, end}, ...]`, `dateStr` is YYYY-MM-DD
 - `formatDate(d)` — Formats a Date as `Wed 14/05/26`
 - `encodeSchedule()` / `decodeScheduleFromHash()` — URL-based sharing via base64 encoding
 - Per-person `duration` field (defaults to 20 min, configurable 5–120 min)
@@ -78,10 +78,26 @@ People are managed via a two-column drag-and-drop interface:
 
 Both are Sortable.js instances sharing `group: 'people'`. `syncFromDOM()` is the `onEnd` handler — uses `> .person-row` direct-child selector (critical: nested duration `<input>` also has `data-id` and would duplicate entries with a descendant selector). `renderPeopleRows()` destroys Sortable instances before clearing DOM and deduplicates by `id` on render.
 
+## Settings Page — Time Blocks
+
+The time window is a dynamic list of `{start, end}` block rows managed in `settings.html`:
+- `renderTimeBlocks(blocks)` — renders block rows; the × remove button is hidden when only one row exists
+- `addTimeBlock()` — appends a new block defaulting to `last.end → last.end + 1h`
+- `removeTimeBlock(index)` — removes a block by index (no-op if only one remains)
+- `getTimeBlocks()` — reads current DOM state and returns `[{start, end}, ...]`
+- Default on load: one block `09:00 → 12:00`
+
+`generateSchedule()` distributes people across blocks in order, overflowing to the next block when the current one is full. Each slot carries `blockIndex` so `index.html` can render `— break —` separators between blocks. Old schedules without `blockIndex` render without separators (backward compatible).
+
+Schedule object shape:
+```json
+{ "date": "Thu 14/05/26", "blocks": [{"start":"09:00","end":"10:30"}], "slots": [{"personId":"...","name":"Alice","start":"09:00","end":"09:20","blockIndex":0}] }
+```
+
 ## Key Implementation Details
 
 - Date format everywhere is `Wed 14/05/26` (via `formatDate()` in `app.js`)
-- `formatScheduleAsText` outputs `1-1 Meetings — <date>` with no time range line
-- Default time window: 09:00–12:00
+- `formatScheduleAsText` outputs `1-1 Meetings — <date>`; inserts a blank line between blocks when `blockIndex` changes
+- Default time window: one block 09:00–12:00
 - `syncFromDOM` must use `> .person-row` not `[data-id]` — see above
 - Presenter warning checks `included !== false` (data), not DOM checkboxes
