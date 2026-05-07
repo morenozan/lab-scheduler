@@ -75,42 +75,52 @@ function setPresenter(name) {
 }
 
 // Scheduling algorithm
-function generateSchedule(startTime, endTime, activePeople, dateStr) {
-  if (!startTime || !endTime || activePeople.length === 0) {
+// timeBlocks: [{start: "09:00", end: "10:30"}, ...]
+function generateSchedule(timeBlocks, activePeople, dateStr) {
+  if (!timeBlocks || timeBlocks.length === 0 || activePeople.length === 0) {
     return { error: 'Please set times and select at least one person.' };
   }
 
-  const [startHour, startMin] = startTime.split(':').map(Number);
-  const [endHour, endMin] = endTime.split(':').map(Number);
-
-  const startTotalMin = startHour * 60 + startMin;
-  const endTotalMin = endHour * 60 + endMin;
-  const totalAvailableMin = endTotalMin - startTotalMin;
-
-  if (totalAvailableMin <= 0) {
-    return { error: 'End time must be after start time.' };
+  const parsedBlocks = [];
+  for (const block of timeBlocks) {
+    const [sh, sm] = block.start.split(':').map(Number);
+    const [eh, em] = block.end.split(':').map(Number);
+    const startMin = sh * 60 + sm;
+    const endMin = eh * 60 + em;
+    if (endMin <= startMin) {
+      return { error: 'Each block\'s end time must be after its start time.' };
+    }
+    parsedBlocks.push({ startMin, endMin, availableMin: endMin - startMin });
   }
 
+  const totalAvailableMin = parsedBlocks.reduce((sum, b) => sum + b.availableMin, 0);
   const requiredMin = activePeople.reduce((sum, p) => sum + (p.duration || 20), 0);
   if (requiredMin > totalAvailableMin) {
     return { error: `Not enough time. Need ${requiredMin} min, have ${totalAvailableMin} min.` };
   }
 
   const slots = [];
-  let currentMin = startTotalMin;
+  let blockIdx = 0;
+  let currentMin = parsedBlocks[0].startMin;
 
-  activePeople.forEach(person => {
+  for (const person of activePeople) {
     const duration = person.duration || 20;
+    while (blockIdx < parsedBlocks.length && currentMin + duration > parsedBlocks[blockIdx].endMin) {
+      blockIdx++;
+      if (blockIdx < parsedBlocks.length) currentMin = parsedBlocks[blockIdx].startMin;
+    }
+    if (blockIdx >= parsedBlocks.length) {
+      return { error: 'A slot is too long to fit in any remaining block.' };
+    }
     const start = minToTime(currentMin);
     currentMin += duration;
     const end = minToTime(currentMin);
-    slots.push({ personId: person.id, name: person.name, start, end });
-  });
+    slots.push({ personId: person.id, name: person.name, start, end, blockIndex: blockIdx });
+  }
 
   return {
     date: formatDate(dateStr ? new Date(dateStr + 'T12:00:00') : new Date()),
-    startTime,
-    endTime,
+    blocks: timeBlocks,
     slots
   };
 }
@@ -155,7 +165,12 @@ async function copyToClipboard(text) {
 
 function formatScheduleAsText(schedule) {
   let text = `1-1 Meetings — ${schedule.date}\n\n`;
+  let lastBlockIndex = undefined;
   schedule.slots.forEach(slot => {
+    if (slot.blockIndex !== undefined && slot.blockIndex !== lastBlockIndex && lastBlockIndex !== undefined) {
+      text += '\n';
+    }
+    lastBlockIndex = slot.blockIndex;
     text += `${slot.start}–${slot.end} — ${slot.name}\n`;
   });
   return text;

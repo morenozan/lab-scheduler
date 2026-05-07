@@ -45,7 +45,12 @@
       currentSchedule = schedule;
 
       let html = `<div class="schedule-card"><h3>${escapeHtml(schedule.date)}</h3>`;
+      let lastBlockIndex = undefined;
       schedule.slots.forEach(slot => {
+        if (slot.blockIndex !== undefined && slot.blockIndex !== lastBlockIndex && lastBlockIndex !== undefined) {
+          html += `<div class="block-break">— break —</div>`;
+        }
+        lastBlockIndex = slot.blockIndex;
         html += `<div class="schedule-slot">
           <span class="schedule-time">${escapeHtml(slot.start)}–${escapeHtml(slot.end)}</span>
           <span class="schedule-name">${escapeHtml(slot.name)}</span>

@@ -388,3 +388,12 @@ input[type="checkbox"] {
     width: 100%;
   }
 }
+
+.block-break {
+  text-align: center;
+  color: var(--overlay0);
+  font-size: 13px;
+  padding: 8px 0;
+  margin: 4px 0;
+  letter-spacing: 0.05em;
+}

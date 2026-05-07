@@ -10,7 +10,7 @@
       display: flex;
       gap: 15px;
       align-items: center;
-      margin-bottom: 20px;
+      margin-bottom: 12px;
       flex-wrap: wrap;
     }
 
@@ -20,9 +20,40 @@
       gap: 8px;
     }
 
-    .time-window input[type="time"] {
+    .time-block-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .time-block-row input[type="time"] {
       width: auto;
-      max-width: 160px;
+      max-width: 130px;
+    }
+
+    .block-arrow {
+      color: var(--overlay0);
+    }
+
+    .remove-block-btn {
+      background: transparent;
+      color: var(--overlay0);
+      border: none;
+      padding: 2px 6px;
+      font-size: 16px;
+      line-height: 1;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .remove-block-btn:hover {
+      color: var(--red);
+      background: rgba(243, 139, 168, 0.15);
+    }
+
+    #addBlockBtn {
+      margin-bottom: 20px;
     }
 
     .date-picker-wrapper {
@@ -174,9 +205,9 @@
     <h2>Time Window</h2>
     <div class="time-window">
       <label>Date: <span class="date-picker-wrapper"><span id="dateDayLabel" class="date-day-prefix"></span><input type="text" id="scheduleDate" placeholder="dd/mm/yy"></span></label>
-      <label>Start: <input type="time" id="startTime" value="09:00"></label>
-      <label>End: <input type="time" id="endTime" value="12:00"></label>
     </div>
+    <div id="timeBlocksList"></div>
+    <button type="button" id="addBlockBtn" class="secondary" onclick="addTimeBlock()">+ Add block</button>
 
     <!-- Presenter reminder -->
     <div class="presenter-section">
@@ -342,16 +373,55 @@
       return d;
     }
 
+    function renderTimeBlocks(blocks) {
+      const list = document.getElementById('timeBlocksList');
+      list.innerHTML = '';
+      blocks.forEach((block, i) => {
+        const row = document.createElement('div');
+        row.className = 'time-block-row';
+        row.innerHTML = `
+          <input type="time" class="block-start" value="${block.start}">
+          <span class="block-arrow">→</span>
+          <input type="time" class="block-end" value="${block.end}">
+          <button type="button" class="remove-block-btn" onclick="removeTimeBlock(${i})" ${blocks.length === 1 ? 'style="visibility:hidden"' : ''}>×</button>
+        `;
+        list.appendChild(row);
+      });
+    }
+
+    function getTimeBlocks() {
+      return Array.from(document.querySelectorAll('#timeBlocksList .time-block-row')).map(row => ({
+        start: row.querySelector('.block-start').value,
+        end: row.querySelector('.block-end').value
+      }));
+    }
+
+    function addTimeBlock() {
+      const blocks = getTimeBlocks();
+      const last = blocks[blocks.length - 1];
+      const [h, m] = last.end.split(':').map(Number);
+      const newStartMin = h * 60 + m;
+      const newEndMin = Math.min(newStartMin + 60, 23 * 60 + 59);
+      blocks.push({ start: minToTime(newStartMin), end: minToTime(newEndMin) });
+      renderTimeBlocks(blocks);
+    }
+
+    function removeTimeBlock(index) {
+      const blocks = getTimeBlocks();
+      if (blocks.length <= 1) return;
+      blocks.splice(index, 1);
+      renderTimeBlocks(blocks);
+    }
+
     function doGenerate() {
-      const startTime = document.getElementById('startTime').value;
-      const endTime = document.getElementById('endTime').value;
+      const timeBlocks = getTimeBlocks();
       const dateParsed = parseDdMmYy(document.getElementById('scheduleDate').value);
       const dateStr = dateParsed
         ? `${dateParsed.getFullYear()}-${String(dateParsed.getMonth() + 1).padStart(2, '0')}-${String(dateParsed.getDate()).padStart(2, '0')}`
         : null;
       const activePeople = getActivePeople();
 
-      const result = generateSchedule(startTime, endTime, activePeople, dateStr);
+      const result = generateSchedule(timeBlocks, activePeople, dateStr);
       const errorDiv = document.getElementById('generateError');
 
       if (result.error) {
@@ -425,6 +495,7 @@
       document.getElementById('scheduleDate').value = nextWednesday();
       updateDateDay();
       document.getElementById('presenter').value = getPresenter();
+      renderTimeBlocks([{ start: '09:00', end: '12:00' }]);
       renderPeopleRows();
     });
   </script>
