@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - Lab Scheduler</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="back-link">
+      <a href="index.html">← Back</a>
+    </div>
+
+    <h1>Settings</h1>
+
+    <h2>Slot Duration</h2>
+    <div class="duration-row">
+      <label>Minutes per person:</label>
+      <input type="number" id="duration" min="5" max="120" value="20">
+      <button class="secondary" onclick="resetDuration()">Reset to 20</button>
+    </div>
+
+    <h2>Lab Members</h2>
+    <p style="font-size: 13px; color: #666;">Drag to reorder. Members are listed in the order they'll appear in schedules.</p>
+
+    <div class="add-person">
+      <input type="text" id="newPersonInput" placeholder="Enter name...">
+      <button onclick="addNewPerson()">Add</button>
+    </div>
+
+    <ul class="people-list" id="peopleList"></ul>
+
+    <p style="font-size: 12px; color: #999;">Changes save automatically.</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  <script src="app.js"></script>
+  <script>
+    function renderPeopleList() {
+      const people = getPeople();
+      const list = document.getElementById('peopleList');
+      list.innerHTML = '';
+
+      people.forEach(person => {
+        const li = document.createElement('li');
+        li.className = 'people-item';
+        li.draggable = true;
+        li.dataset.id = person.id;
+
+        li.innerHTML = `
+          <span class="drag-handle">≡</span>
+          <span class="people-name">${escapeHtml(person.name)}</span>
+          <button class="danger" onclick="deletePersonHandler('${person.id}')">✕</button>
+        `;
+
+        list.appendChild(li);
+      });
+
+      if (people.length > 0) {
+        Sortable.create(list, {
+          handle: '.drag-handle',
+          animation: 150,
+          onEnd: (evt) => {
+            const newOrder = Array.from(list.querySelectorAll('[data-id]')).map(li => {
+              const id = li.dataset.id;
+              return people.find(p => p.id === id);
+            });
+            reorderPeople(newOrder);
+          }
+        });
+      }
+    }
+
+    function addNewPerson() {
+      const input = document.getElementById('newPersonInput');
+      const name = input.value.trim();
+      if (!name) return;
+      addPerson(name);
+      input.value = '';
+      renderPeopleList();
+    }
+
+    function deletePersonHandler(id) {
+      if (confirm('Delete this person?')) {
+        removePerson(id);
+        renderPeopleList();
+      }
+    }
+
+    function resetDuration() {
+      resetSlotDuration();
+      document.getElementById('duration').value = getSlotDuration();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    document.getElementById('duration').addEventListener('change', (e) => {
+      setSlotDuration(parseInt(e.target.value, 10));
+    });
+
+    document.getElementById('newPersonInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        addNewPerson();
+      }
+    });
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('duration').value = getSlotDuration();
+      renderPeopleList();
+    });
+  </script>
+</body>
+</html>

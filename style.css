@@ -1,0 +1,332 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  color: #333;
+  background: #f5f5f5;
+  margin: 0;
+  padding: 20px;
+}
+
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 8px;
+  padding: 30px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 15px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+h2 {
+  font-size: 20px;
+  margin: 20px 0 15px 0;
+  font-weight: 600;
+}
+
+a {
+  color: #0066cc;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Forms */
+input[type="time"],
+input[type="text"],
+input[type="number"] {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  width: 100%;
+  max-width: 200px;
+}
+
+input[type="time"]:focus,
+input[type="text"]:focus,
+input[type="number"]:focus {
+  outline: none;
+  border-color: #0066cc;
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+}
+
+button {
+  padding: 10px 16px;
+  background: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background: #0052a3;
+}
+
+button.secondary {
+  background: #666;
+}
+
+button.secondary:hover {
+  background: #555;
+}
+
+button.danger {
+  background: #d9534f;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+button.danger:hover {
+  background: #c9302c;
+}
+
+/* Layout helpers */
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.row.inputs {
+  flex-wrap: wrap;
+}
+
+.row label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+input[type="checkbox"] {
+  cursor: pointer;
+}
+
+/* Checklist */
+.checklist {
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 15px;
+  margin: 15px 0;
+  background: #fafafa;
+}
+
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+/* Warning banner */
+.warning-banner {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 4px;
+  padding: 12px;
+  margin: 15px 0;
+  color: #856404;
+  font-size: 14px;
+}
+
+/* Schedule output */
+.schedule-card {
+  border: 2px solid #0066cc;
+  border-radius: 4px;
+  padding: 20px;
+  margin: 20px 0;
+  background: #f0f8ff;
+}
+
+.schedule-card h3 {
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  color: #0066cc;
+}
+
+.schedule-slot {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #ddd;
+  font-size: 15px;
+}
+
+.schedule-slot:last-child {
+  border-bottom: none;
+}
+
+.schedule-time {
+  font-weight: 600;
+  color: #0066cc;
+  min-width: 90px;
+}
+
+.schedule-name {
+  color: #333;
+}
+
+.error {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+  padding: 12px;
+  border-radius: 4px;
+  margin: 15px 0;
+  font-size: 14px;
+}
+
+.success {
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+  padding: 12px;
+  border-radius: 4px;
+  margin: 15px 0;
+  font-size: 14px;
+}
+
+/* Settings page */
+.duration-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.duration-row input {
+  width: 80px;
+}
+
+.people-list {
+  list-style: none;
+  padding: 0;
+  margin: 15px 0;
+}
+
+.people-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  background: #fafafa;
+  cursor: grab;
+}
+
+.people-item:active {
+  cursor: grabbing;
+  background: #f0f0f0;
+}
+
+.drag-handle {
+  color: #999;
+  font-weight: bold;
+  cursor: grab;
+  user-select: none;
+}
+
+.people-item:active .drag-handle {
+  cursor: grabbing;
+}
+
+.people-name {
+  flex: 1;
+}
+
+.add-person {
+  display: flex;
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.add-person input {
+  flex: 1;
+}
+
+/* Buttons row */
+.button-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+/* Back link */
+.back-link {
+  display: inline-block;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+/* Shareable view */
+.share-buttons {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+
+.share-buttons button {
+  flex: 1;
+  min-width: 150px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .container {
+    padding: 20px;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  input[type="time"],
+  input[type="text"],
+  input[type="number"] {
+    max-width: 100%;
+  }
+
+  .row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .share-buttons {
+    flex-direction: column;
+  }
+
+  .share-buttons button {
+    width: 100%;
+  }
+}
