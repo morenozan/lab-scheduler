@@ -1,80 +1,5 @@
-// Storage keys
-const STORAGE_PEOPLE = '1to1_people';
-const STORAGE_DURATION = '1to1_slot_duration';
 const STORAGE_LAST_SCHEDULE = '1to1_last_schedule';
-const STORAGE_PRESENTER = '1to1_presenter';
 
-// Initialize storage with defaults
-function initStorage() {
-  if (!localStorage.getItem(STORAGE_PEOPLE)) {
-    localStorage.setItem(STORAGE_PEOPLE, JSON.stringify([]));
-  }
-  if (!localStorage.getItem(STORAGE_DURATION)) {
-    localStorage.setItem(STORAGE_DURATION, '20');
-  }
-  if (!localStorage.getItem(STORAGE_PRESENTER)) {
-    localStorage.setItem(STORAGE_PRESENTER, '');
-  }
-}
-
-// People management
-function getPeople() {
-  const data = localStorage.getItem(STORAGE_PEOPLE);
-  return data ? JSON.parse(data) : [];
-}
-
-function savePeople(people) {
-  localStorage.setItem(STORAGE_PEOPLE, JSON.stringify(people));
-}
-
-function addPerson(name) {
-  if (!name.trim()) return;
-  const people = getPeople();
-  people.push({ id: Math.random().toString(36).substr(2, 9), name: name.trim(), duration: 20, included: true });
-  savePeople(people);
-}
-
-function removePerson(id) {
-  const people = getPeople();
-  const filtered = people.filter(p => p.id !== id);
-  savePeople(filtered);
-}
-
-function reorderPeople(newOrder) {
-  savePeople(newOrder);
-}
-
-// Per-person slot duration
-function setPersonDuration(id, minutes) {
-  const people = getPeople();
-  const person = people.find(p => p.id === id);
-  if (person) {
-    person.duration = Math.max(5, Math.min(120, minutes));
-    savePeople(people);
-  }
-}
-
-function resetAllDurations() {
-  const people = getPeople();
-  people.forEach(p => { p.duration = 20; });
-  savePeople(people);
-}
-
-// Active people selection
-function getActivePeople() {
-  return getPeople().filter(p => p.included !== false);
-}
-
-// Presenter reminder
-function getPresenter() {
-  return localStorage.getItem(STORAGE_PRESENTER) || '';
-}
-
-function setPresenter(name) {
-  localStorage.setItem(STORAGE_PRESENTER, name);
-}
-
-// Scheduling algorithm
 // timeBlocks: [{start: "09:00", end: "10:30"}, ...]
 function generateSchedule(timeBlocks, activePeople, dateStr) {
   if (!timeBlocks || timeBlocks.length === 0 || activePeople.length === 0) {
@@ -125,21 +50,6 @@ function generateSchedule(timeBlocks, activePeople, dateStr) {
   };
 }
 
-function formatDate(d) {
-  const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const yy = String(d.getFullYear()).slice(2);
-  return `${weekday} ${dd}/${mm}/${yy}`;
-}
-
-function minToTime(totalMin) {
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
-// Sharing
 function encodeSchedule(schedule) {
   return btoa(JSON.stringify(schedule));
 }
@@ -151,15 +61,6 @@ function decodeScheduleFromHash() {
     return JSON.parse(atob(hash.slice(6)));
   } catch {
     return null;
-  }
-}
-
-async function copyToClipboard(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
   }
 }
 
@@ -175,6 +76,3 @@ function formatScheduleAsText(schedule) {
   });
   return text;
 }
-
-// Initialize on load
-document.addEventListener('DOMContentLoaded', initStorage);
