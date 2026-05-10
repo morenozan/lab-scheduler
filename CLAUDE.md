@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Lab Scheduler is a multi-tool client-side web application for lab management. Tools share the same lab member list and Catppuccin Mocha theme. Currently includes:
+1to1 Scheduler is a multi-tool client-side web application for lab management. Tools share the same lab member list and Catppuccin Mocha theme. Currently includes:
 - **1-1 Meetings** (`1to1/`) — schedule individual check-ins within a time window
 
 ## Running the Application
