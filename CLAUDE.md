@@ -129,3 +129,7 @@ Schedule object shape:
 - `syncFromDOM` must use `> .person-row` not `[data-id]` — see above
 - Presenter warning checks `included !== false` (data), not DOM checkboxes
 - Hub `index.html` redirects old `#data=…` share links to `1to1/index.html` automatically
+
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for planned tools: Lab Duties and Lab Meeting Presenter.
